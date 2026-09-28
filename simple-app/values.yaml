@@ -1,8 +1,8 @@
 replicaCount: 2
 
 image:
-  repository: simple-app
-  tag: "1.0"
+  repository: ghcr.io/merajansari87/githubactions-helm-argocd
+  tag: "ff32aec1b13b677b42c058735230ebade9f16ea2"
   pullPolicy: IfNotPresent
 
 service:
