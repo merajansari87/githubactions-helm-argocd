@@ -1,0 +1,60 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - '.github/workflows/build-push.yml'
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Update Helm image
+        run: |
+          sed -i "s|repository:.*|repository: ghcr.io/${GITHUB_REPOSITORY}|" simple-app/values.yaml
+          sed -i "s|tag:.*|tag: \"${GITHUB_SHA}\"|" simple-app/values.yaml
+
+      - name: Commit Helm update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add simple-app/values.yaml
+
+          if git diff --cached --quiet; then
+            echo "No Helm changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Update image to ${GITHUB_SHA}"
+          git push
